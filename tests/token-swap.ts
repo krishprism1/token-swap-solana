@@ -28,7 +28,7 @@ describe("token_swap", () => {
   let projectSplAccount = new PublicKey("CWjKYqg7yucQURrCsMrdK3MpJm2H3YZAiBqY45BkB8vD");
   const solUsdPriceFeedAccount = new PublicKey("7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE");
 
-  const lamportsToPay = 1_000_000; // 0.001 SOL in lamports
+  const lamportsToPay = 10; // 0.0.00000001 SOL in lamports
   const connection = provider.connection;
 
   before(async () => {
