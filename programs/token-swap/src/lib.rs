@@ -5,7 +5,7 @@ use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
 
-declare_id!("D5Lb79jeod4q5QdFYGUmdf3dkDkNuuVB6oZhWNJbpg3H");
+declare_id!("F4St3k69Ts46uVYwPJeyaw5Tjt6RvFiw9ocoAXtoNsri");
 
 //-------------------------------------------------Struct Declaration-------------------------------------------------
 // Account information of users who use SOL to purchase SPL tokens

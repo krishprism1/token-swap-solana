@@ -67,9 +67,7 @@ describe("token_swap", () => {
         projectSplAta: projectSplAccount,
         projectSplAuthority: project_spl_authority.publicKey,
         userSplAta: userSplAccount,
-        priceUpdate: solUsdPriceFeedAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
+        priceUpdate: solUsdPriceFeedAccount
       })
       .signers([wallet])
       .rpc();
@@ -96,8 +94,6 @@ describe("token_swap", () => {
           projectSplAuthority: project_spl_authority.publicKey,
           userSplAta: userSplAccount,
           priceUpdate: solUsdPriceFeedAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
         })
         .signers([wallet])
         .rpc();
