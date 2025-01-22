@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{ self, Token, TokenAccount, Transfer as SplTransfer };
+use anchor_spl::token::{ self, Token, TokenAccount,Mint, Transfer as SplTransfer };
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::associated_token;
 use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
-
-declare_id!("F4St3k69Ts46uVYwPJeyaw5Tjt6RvFiw9ocoAXtoNsri");
+declare_id!("EY6AC3gYxb3NmSXDwB9gkVK3BvPdqWmKqVJK98XQVKDs");
 
 //-------------------------------------------------Struct Declaration-------------------------------------------------
 // Account information of users who use SOL to purchase SPL tokens
@@ -26,11 +27,20 @@ pub struct BuySplWithSol<'info> {
     // The subject used to authorize SPL tokens transfer
     pub project_spl_authority: Signer<'info>,
 
+    pub mint: Account<'info, Mint>,
     // User's token account that receives SPL tokens
-    #[account(mut)]
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = mint,
+        associated_token::authority = user
+    )]
     pub user_spl_ata: Account<'info, TokenAccount>,
-    pub price_update: Account<'info, PriceUpdateV2>,
 
+    #[account(address = associated_token::ID)]
+    pub associated_token_program:  Program<'info, associated_token::AssociatedToken>,
+
+    pub price_update: Account<'info, PriceUpdateV2>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -123,7 +133,7 @@ pub mod token_swap {
     pub fn buy_spl_with_sol(
         ctx: Context<BuySplWithSol>,
         // The amount of sol paid by the user (in lamport)
-        lamports_to_pay: u64,
+        lamports_to_pay: u64
     ) -> Result<()> {
         // 1. Convert lamports to SOL, then multiply by SOL/USD to get the value in USD, and divide by 0.02 to get the amount of SPL tokens
         let spl_precision: u64 = 1_000_000; // 1 SPL tokens = 10^6 smallest unit
@@ -134,11 +144,13 @@ pub mod token_swap {
         // get_price_no_older_than will fail if the price update is more than 60 seconds old
         let maximum_age: u64 = 60;
         // This string is the id of the SOL/USD feed. See https://pyth.network/developers/price-feed-ids for all available IDs.
-        let feed_id: [u8; 32] = get_feed_id_from_hex("0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d")?;
+        let feed_id: [u8; 32] = get_feed_id_from_hex(
+            "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+        )?;
         let price = price_update.get_price_no_older_than(&Clock::get()?, maximum_age, &feed_id)?;
         // Sample output:
         msg!("SOL/USD price is ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
-     
+
         // Safely convert price.price (i64) to u64
         let sol_price_in_usd: f64 = price.price as f64;
 
@@ -179,8 +191,6 @@ pub mod token_swap {
         )?;
 
         // 4. TODO: Verify the payment success and amount
-
-        // 5. TODO: Check whether the user has an SPL token account for SPL tokens, and if not, help the user create one
 
         // 6. Transfer SPL tokens tokens to the user (At this point, it has been verified that project_spl_ata has enough SPL tokens to transfer)
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
@@ -246,7 +256,6 @@ pub mod token_swap {
         Ok(())
     }
 }
-
 
 #[error_code]
 pub enum CustomError {

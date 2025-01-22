@@ -30,9 +30,9 @@ describe("token_swap", () => {
 
   const lamportsToPay = 10; // 0.0.00000001 SOL in lamports
   const connection = provider.connection;
-
+  const splMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
   before(async () => {
-    const splMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
+    
     // Get the associated token account address
     userSplAccount = await getAssociatedTokenAddress(
       splMint,                // SPL token mint
@@ -66,7 +66,7 @@ describe("token_swap", () => {
         projectSolAccount: project_spl_authority.publicKey,
         projectSplAta: projectSplAccount,
         projectSplAuthority: project_spl_authority.publicKey,
-        userSplAta: userSplAccount,
+        mint: splMint,
         priceUpdate: solUsdPriceFeedAccount
       })
       .signers([wallet])
@@ -92,7 +92,7 @@ describe("token_swap", () => {
           projectSolAccount: project_spl_authority.publicKey,
           projectSplAta: projectSplAccount,
           projectSplAuthority: project_spl_authority.publicKey,
-          userSplAta: userSplAccount,
+          mint: splMint,
           priceUpdate: solUsdPriceFeedAccount,
         })
         .signers([wallet])
