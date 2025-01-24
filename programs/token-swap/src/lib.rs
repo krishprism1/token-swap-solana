@@ -1,12 +1,15 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{ self, Token, TokenAccount,Mint, Transfer as SplTransfer };
+use anchor_spl::token::{ self, Token, TokenAccount, Mint, Transfer as SplTransfer };
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::associated_token;
 use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
-declare_id!("EY6AC3gYxb3NmSXDwB9gkVK3BvPdqWmKqVJK98XQVKDs");
+declare_id!("94XY7eXGd1HJVYNtNCtjggvy4v8ztEcKpZTzZntZkw6y");
+
+const MIN_PURCHASE: u64 = 50;
+const MAX_PURCHASE: u64 = 5_000_000;
 
 //-------------------------------------------------Struct Declaration-------------------------------------------------
 // Account information of users who use SOL to purchase SPL tokens
@@ -38,7 +41,7 @@ pub struct BuySplWithSol<'info> {
     pub user_spl_ata: Account<'info, TokenAccount>,
 
     #[account(address = associated_token::ID)]
-    pub associated_token_program:  Program<'info, associated_token::AssociatedToken>,
+    pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
 
     pub price_update: Account<'info, PriceUpdateV2>,
     pub token_program: Program<'info, Token>,
@@ -67,11 +70,26 @@ pub struct BuySplWithSpl<'info> {
     // The subject used to authorize SPL tokens transfer
     pub project_spl_authority: Signer<'info>,
 
+    pub user_mint: Account<'info, Mint>,
+
+    pub mint: Account<'info, Mint>,
+
     // User's token account that receives SPL tokens
-    #[account(mut)]
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = mint,
+        associated_token::authority = user
+    )]
     pub user_spl_ata: Account<'info, TokenAccount>,
 
+    #[account(address = associated_token::ID)]
+    pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
+
+    pub price_update: Account<'info, PriceUpdateV2>,
+
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 // Price update accounts from pyth
@@ -151,8 +169,7 @@ pub mod token_swap {
         // Sample output:
         msg!("SOL/USD price is ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
 
-        // Safely convert price.price (i64) to u64
-        let sol_price_in_usd: f64 = price.price as f64;
+        let sol_price_in_usd: f64 = (price.price as f64) * (10f64).powi(price.exponent);
 
         let sol_amount = (lamports_to_pay as f64) / (lamports_per_sol as f64); // the amount of sol
         let user_pay_in_usd = sol_amount * sol_price_in_usd; // the value in USD
@@ -160,12 +177,18 @@ pub mod token_swap {
         let spl_amount_float = (user_pay_in_usd / spl_price_in_usd) * (spl_precision as f64); // SPL tokens minimum unit amount
         let spl_amount: u64 = spl_amount_float.floor() as u64; // Convert to integer
 
+        if spl_amount < MIN_PURCHASE * spl_precision {
+            return Err(CustomError::PurchaseAmountTooLow.into());
+        }
+
+        if spl_amount > MAX_PURCHASE * spl_precision {
+            return Err(CustomError::PurchaseAmountTooHigh.into());
+        }
+
         // 2. Verify whether the amount of SPL tokens in the library is sufficient
-        // TODO: Terminate the transaction and prompt the user on the front end
-        require!(
-            ctx.accounts.project_spl_ata.amount >= spl_amount,
-            CustomError::InsufficientSPLBalance
-        );
+        if ctx.accounts.project_spl_ata.amount < spl_amount {
+            return Err(CustomError::InsufficientSPLBalance.into());
+        }
 
         // 3. Receive the SOL paid by the user if SPL tokens is sufficient
         let user_signer = &ctx.accounts.user; // User's normal wallet (used to send sol)
@@ -189,8 +212,6 @@ pub mod token_swap {
                 system_program.to_account_info(),
             ]
         )?;
-
-        // 4. TODO: Verify the payment success and amount
 
         // 6. Transfer SPL tokens tokens to the user (At this point, it has been verified that project_spl_ata has enough SPL tokens to transfer)
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
@@ -219,16 +240,48 @@ pub mod token_swap {
         // 1. Calculate the amount of SPL tokens to be issued to the user (1 USDT/USDC = 1 USD, 1 SPL tokens = 0.02 USD)
         let spl_precision: u64 = 1_000_000; // 1 SPL tokens = 10^6 smallest unit
         let spl_price_in_usd = 0.02_f64; // 1 SPL tokens = 0.02 USD
+        let decimals = 1_000_00u64; // 
 
-        let spl_amount_float = ((token_amount as f64) / spl_price_in_usd) * (spl_precision as f64); // SPL tokens minimum unit amount
-        let spl_amount: u64 = spl_amount_float.floor() as u64; // Convert to integer
+        let user_mint_key = ctx.accounts.user_mint.key().to_string();
+        let feed_ids = match user_mint_key.as_str() {
+            "USDT" => Some("HT2PLQBcG5EiCcNSaMHAjSgd9F98ecpATbk4Sk5oYuM"),
+            "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb" => Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
+            _ => None,
+        };
+
+        let price_update = &mut ctx.accounts.price_update;
+        let maximum_age: u64 = 60;
+        let feed_id: [u8; 32] = match feed_ids {
+            Some(id) => get_feed_id_from_hex(id)?,
+            None => {
+                msg!("Invalid mint key: {}", user_mint_key);
+                return Err(CustomError::InvalidMint.into());
+            }
+        };
+        let price = price_update.get_price_no_older_than(&Clock::get()?, maximum_age, &feed_id)?;
+
+        let usdc_price_in_usd: f64 = (price.price as f64) * (10f64).powi(price.exponent);
+
+        let spl_amount_float = ((token_amount as f64) / (decimals as f64)) / spl_price_in_usd;
+
+        let user_pay_in_usd = spl_amount_float * (spl_precision as f64); // the value in USD
+
+        let spl_amount: u64 = user_pay_in_usd.floor() as u64; // Convert to integer
+
+        msg!("(USDC or USDT)/USD price is {}", usdc_price_in_usd);
 
         // 2. Verify whether the amount of SPL tokens in the library is sufficient
-        // TODO: Terminate the transaction and prompt the user on the front end
-        require!(
-            ctx.accounts.project_spl_ata.amount >= spl_amount,
-            CustomError::InsufficientSPLBalance
-        );
+        if ctx.accounts.project_spl_ata.amount < spl_amount {
+            return Err(CustomError::InsufficientSPLBalance.into());
+        }
+
+        if spl_amount < MIN_PURCHASE * spl_precision {
+            return Err(CustomError::PurchaseAmountTooLow.into());
+        }
+
+        if spl_amount > MAX_PURCHASE * spl_precision {
+            return Err(CustomError::PurchaseAmountTooHigh.into());
+        }
 
         // 3. TODO: Receive the SOL paid by the user if SPL tokens is sufficient,
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
@@ -237,10 +290,6 @@ pub mod token_swap {
             authority: ctx.accounts.user.to_account_info(),
         });
         token::transfer(cpi_ctx, token_amount)?;
-
-        // 4. TODO: Verify the payment success and amount
-
-        // 5. TODO: Check whether the user has an SPL token account for SPL tokens, and if not, help the user create one
 
         // 6. Transfer SPL tokens tokens to the user (At this point, it has been verified that project_spl_ata has enough SPL tokens to transfer)
         let cpi_ctx_spl_transfer = CpiContext::new(
@@ -261,5 +310,10 @@ pub mod token_swap {
 pub enum CustomError {
     #[msg("Not enough SPL tokens in project wallet.")]
     InsufficientSPLBalance,
-    // Other errors...
+    #[msg("The purchase amount is below the minimum limit.")]
+    PurchaseAmountTooLow,
+    #[msg("The purchase amount exceeds the maximum limit.")]
+    PurchaseAmountTooHigh,
+    #[msg("Invalid USDC/USDT mint address.")]
+    InvalidMint,
 }
