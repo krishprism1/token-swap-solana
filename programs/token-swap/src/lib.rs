@@ -6,7 +6,7 @@ use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
-declare_id!("94XY7eXGd1HJVYNtNCtjggvy4v8ztEcKpZTzZntZkw6y");
+declare_id!("2DPfwhdg1K1zZFnY9fg4YQXmqB5ifAFXwU7x3KrXTg4o");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
@@ -244,7 +244,7 @@ pub mod token_swap {
 
         let user_mint_key = ctx.accounts.user_mint.key().to_string();
         let feed_ids = match user_mint_key.as_str() {
-            "USDT" => Some("HT2PLQBcG5EiCcNSaMHAjSgd9F98ecpATbk4Sk5oYuM"),
+            "USDT" => Some("0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b"),
             "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb" => Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
             _ => None,
         };

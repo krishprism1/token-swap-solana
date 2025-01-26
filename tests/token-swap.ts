@@ -38,6 +38,9 @@ describe("token_swap", () => {
 
   const userUsdcATA = new PublicKey("AGNFzzPZK4xvXn9bVQL4GbMhGCSAJjVQdCRtfL6mD5tJ")
 
+  const invalidMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
+
+
   
   before(async () => {
     // Get the associated token account address
@@ -183,7 +186,7 @@ describe("token_swap", () => {
     }
   });
 
-  it("buy spl toke with valid usdc/usdt amount", async () => {
+  it("buy spl token with valid usdc/usdt amount", async () => {
     try {
       const tokenAmountBelowMin = 500000;
       const tx =await program.methods
@@ -206,5 +209,104 @@ describe("token_swap", () => {
       console.log(error)
     }
   })
+
+  it("Fails to purchase project SPL tokens with a SPL token that is different from USDC/USDT.", async () => {
+    try {
+      const tokenAmountBelowMin =  50000; // 0.5 = 25 project spl token,  token decimal = 5
+      const tx =await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          projectTokenAta: projectUsdcAta,
+          projectSplAta: projectSplAccount,
+          projectSplAuthority: project_spl_authority.publicKey,
+          mint: splMint,
+          userMint: invalidMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([project_spl_authority])
+        .rpc();
+
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
+
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'InvalidMint',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
+
+  it("Fails to buy SPL tokens with usdc/usdt when the project wallet has insufficient balance", async () => {
+    try {
+      const tokenAmountBelowMin = 10000000; // 100 = 5000 project spl token,  token decimal = 5
+      const tx =await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          projectTokenAta: projectUsdcAta,
+          projectSplAta: projectSplAccount,
+          projectSplAuthority: project_spl_authority.publicKey,
+          mint: splMint,
+          userMint: usdcMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([project_spl_authority])
+        .rpc();
+
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
+
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'InsufficientSPLBalance',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
+
+  it("Fails to buy SPL tokens by usdc/usdt with amount below minimum limit", async () => {
+    try {
+      const tokenAmountBelowMin =  50000; // 0.5 = 25 project spl token,  token decimal = 5
+      const tx =await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          projectTokenAta: projectUsdcAta,
+          projectSplAta: projectSplAccount,
+          projectSplAuthority: project_spl_authority.publicKey,
+          mint: splMint,
+          userMint: usdcMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([project_spl_authority])
+        .rpc();
+
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
+
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'PurchaseAmountTooLow',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
 
 })
