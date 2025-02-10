@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, Token, TokenAccount, Mint, Transfer as SplTransfer };
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::associated_token;
 use anchor_lang::solana_program::system_instruction;
+use anchor_spl::associated_token::AssociatedToken;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
-declare_id!("2DPfwhdg1K1zZFnY9fg4YQXmqB5ifAFXwU7x3KrXTg4o");
+declare_id!("ABNXAMgCQrt2yWDVuWrhkFSVgkheh4LbysFKXQNwFCkY");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
@@ -92,6 +92,11 @@ pub struct BuySplWithSpl<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[account]
+pub struct State {
+    pub admin: Pubkey,
+}
+
 // Price update accounts from pyth
 #[derive(Accounts)]
 #[instruction()]
@@ -101,10 +106,96 @@ pub struct GetPrice<'info> {
     pub price_update: Account<'info, PriceUpdateV2>,
 }
 
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, payer = admin, space = 8 + 32, seeds = [b"state"], bump)]
+    pub state: Account<'info, State>,
+    #[account(
+        init,
+        payer = admin,
+        seeds = [b"pda_spl_ata"],
+        bump,
+        token::mint = mint,
+        token::authority = state
+    )]
+    pub pda_spl_ata: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct Deposit<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub admin_ata: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"pda_spl_ata"], bump)]
+    pub pda_spl_ata: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub admin_ata: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"pda_spl_ata"], bump)]
+    pub pda_spl_ata: Account<'info, TokenAccount>,
+    #[account(seeds = [b"state"], bump)]
+    pub state: Account<'info, State>,
+    pub token_program: Program<'info, Token>,
+}
+
 // ----------------------------------------------------Programs----------------------------------------------------
 #[program]
 pub mod token_swap {
     use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let state = &mut ctx.accounts.state;
+        state.admin = *ctx.accounts.admin.key;
+        Ok(())
+    }
+
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
+            from: ctx.accounts.admin_ata.to_account_info(), // From admin_spl_ata
+            to: ctx.accounts.pda_spl_ata.to_account_info(), // To pda_spl_ata
+            authority: ctx.accounts.admin.to_account_info(), // Project owner's signature
+        });
+
+        token::transfer(cpi_ctx, amount)
+    }
+
+    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+        let state = &ctx.accounts.state;
+        require_keys_eq!(state.admin, ctx.accounts.admin.key(), CustomError::Unauthorized);
+
+        let pda_spl_balance = ctx.accounts.pda_spl_ata.amount;
+        if pda_spl_balance > 0 {
+            let seeds = &[b"state".as_ref(), &[ctx.bumps.state]];
+            let signer = &[&seeds[..]];
+
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                SplTransfer {
+                    from: ctx.accounts.pda_spl_ata.to_account_info(),
+                    to: ctx.accounts.admin_ata.to_account_info(),
+                    authority: ctx.accounts.state.to_account_info(),
+                },
+                signer
+            );
+
+            token::transfer(cpi_ctx, pda_spl_balance)?;
+        }
+
+        Ok(())
+    }
 
     // Get sol/usd, usdt/usd, usdc/usd by oracle
     pub fn get_price(ctx: Context<GetPrice>) -> Result<()> {
@@ -240,12 +331,13 @@ pub mod token_swap {
         // 1. Calculate the amount of SPL tokens to be issued to the user (1 USDT/USDC = 1 USD, 1 SPL tokens = 0.02 USD)
         let spl_precision: u64 = 1_000_000; // 1 SPL tokens = 10^6 smallest unit
         let spl_price_in_usd = 0.02_f64; // 1 SPL tokens = 0.02 USD
-        let decimals = 1_000_00u64; // 
+        let decimals = 1_000_00u64; //
 
         let user_mint_key = ctx.accounts.user_mint.key().to_string();
         let feed_ids = match user_mint_key.as_str() {
             "USDT" => Some("0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b"),
-            "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb" => Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
+            "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb" =>
+                Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
             _ => None,
         };
 
@@ -262,7 +354,7 @@ pub mod token_swap {
 
         let usdc_price_in_usd: f64 = (price.price as f64) * (10f64).powi(price.exponent);
 
-        let spl_amount_float = ((token_amount as f64) / (decimals as f64)) / spl_price_in_usd;
+        let spl_amount_float = (token_amount as f64) / (decimals as f64) / spl_price_in_usd;
 
         let user_pay_in_usd = spl_amount_float * (spl_precision as f64); // the value in USD
 
@@ -306,6 +398,7 @@ pub mod token_swap {
     }
 }
 
+
 #[error_code]
 pub enum CustomError {
     #[msg("Not enough SPL tokens in project wallet.")]
@@ -316,4 +409,6 @@ pub enum CustomError {
     PurchaseAmountTooHigh,
     #[msg("Invalid USDC/USDT mint address.")]
     InvalidMint,
+    #[msg("Unauthorized Access")]
+    Unauthorized,
 }

@@ -1,18 +1,18 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
-[programs.localnet]
-token_swap = "2DPfwhdg1K1zZFnY9fg4YQXmqB5ifAFXwU7x3KrXTg4o"
+[programs.devnet]
+token_swap = "ABNXAMgCQrt2yWDVuWrhkFSVgkheh4LbysFKXQNwFCkY"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "Devnet"
-wallet = "/home/ashutosh/.config/solana/id.json"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
