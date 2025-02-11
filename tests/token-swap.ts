@@ -35,12 +35,11 @@ describe("token_swap", () => {
   const connection = provider.connection;
   const splMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
   const usdcMint = new PublicKey("7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb");
+  const usdtMint = new PublicKey("HDAabPKjBPaaLbtwLN7HB7z3FtDbgwJDGybJtQEg3LWu");
 
   const userUsdcATA = new PublicKey("AGNFzzPZK4xvXn9bVQL4GbMhGCSAJjVQdCRtfL6mD5tJ")
 
   const invalidMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
-
-
 
   before(async () => {
     // Get the associated token account address
@@ -68,32 +67,75 @@ describe("token_swap", () => {
     }
   });
 
-  // it("Initializes the token swap state", async () => {
-  //   const stateAccount = Keypair.generate();
-  //   const pdaSplAta = Keypair.generate(); // PDA token account (not necessary to sign)
+  it("Initializes the token swap state and accounts", async () => {
+    const tx = await program.methods
+      .initializeState(usdcMint, usdtMint, splMint)
+      .accounts({
+        admin: project_spl_authority.publicKey,
+      })
+      .signers([project_spl_authority])
+      .rpc();
 
-  //   const tx = await program.methods
-  //     .initialize()
-  //     .accounts({
-  //       mint: splMint,
-  //       admin: project_spl_authority.publicKey,
-  //     })
-  //     .signers([project_spl_authority])
-  //     .rpc();
+    console.log("Initialize TX:", tx);
+    const state = await program.account.state.all();
+    console.log("Initialize TX:", tx, "+++", state);
 
-  //   console.log("Initialize TX:", tx);
-  // });
+  });
 
+  it("Initializes the token swap pda spl ata", async () => {
+    const _state = await program.account.state.all();
+    console.log("Initialize TX:", "+++", _state);
+    const tx = await program.methods
+      .initializePdaSplAta()
+      .accounts({
+        admin: project_spl_authority.publicKey,
+        mint: splMint,
+      })
+      .signers([project_spl_authority])
+      .rpc();
+
+    console.log("Initialize TX:", tx);
+
+  });
+
+  it("Initializes the token swap pda usdc ata", async () => {
+    const tx = await program.methods
+      .initializePdaUsdcAta()
+      .accounts({
+        usdcMint: usdcMint,
+        admin: project_spl_authority.publicKey,
+      })
+      .signers([project_spl_authority])
+      .rpc();
+
+    console.log("Initialize TX:", tx);
+    const state = await program.account.state.all();
+    console.log("Initialize TX:", tx, "+++", state);
+
+  });
+
+  it("Initializes the token swap pda usdt ata", async () => {
+    const tx = await program.methods
+      .initializePdaUsdtAta()
+      .accounts({
+        usdtMint: usdtMint,
+        admin: project_spl_authority.publicKey,
+      })
+      .signers([project_spl_authority])
+      .rpc();
+
+    console.log("Initialize TX:", tx);
+    const state = await program.account.state.all();
+    console.log("Initialize TX:", tx, "+++", state);
+  });
 
   it("Deposits SPL tokens into the swap", async () => {
-    // const state = await program.account.state.all();
     const depositAmount = new anchor.BN(10000000);
 
     const tx = await program.methods
       .deposit(depositAmount)
       .accounts({
-        admin: project_spl_authority.publicKey, 
-        adminAta: projectSplAccount,
+        admin: project_spl_authority.publicKey,
       })
       .signers([project_spl_authority])
       .rpc();
@@ -101,21 +143,34 @@ describe("token_swap", () => {
     console.log("Deposit TX:", tx);
   });
 
-
-
   it("Withdraws SPL tokens from the swap", async () => {
-    const withdrawAmount = new anchor.BN(1000000);
     const tx = await program.methods
       .withdraw()
       .accounts({
         admin: project_spl_authority.publicKey,
-        adminAta: projectSplAccount, // Admin's associated token account
       })
       .signers([project_spl_authority]) // Sign with admin
       .rpc();
 
     console.log("Withdraw TX:", tx);
   });
+
+  // it("Updates the admin address", async () => {
+  //   const newAdmin = Keypair.generate(); // Generate a new admin keypair
+
+  //   const tx = await program.methods
+  //     .updateAdmin(newAdmin.publicKey) // Pass the new admin as an argument
+  //     .accounts({})
+  //     .signers([project_spl_authority]) // Old admin must sign
+  //     .rpc();
+
+  //   console.log("Update Admin TX:", tx);
+
+  //   // Fetch the state to verify the admin update
+  //   const updatedState = await program.account.state.all();
+  //   console.log(updatedState, "+++++")
+  // });
+
 
 
   // it("Buys SPL tokens with valid SOL", async () => {
