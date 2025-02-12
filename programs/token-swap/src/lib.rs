@@ -405,7 +405,7 @@ pub mod token_swap {
         let spl_price_in_usd = 0.02_f64;
         let decimals = 1_000_000u64;
         let maximum_age: u64 = 90;
-        const USDC_MINT: &str = "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb";
+        const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
         const USDT_MINT: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 
         let user_mint_key = ctx.accounts.user_mint.key().to_string();
