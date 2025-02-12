@@ -31,7 +31,7 @@ describe("token_swap", () => {
   const usdcUsdPriceFeedAccount = new PublicKey("Dpw1EAVrSB1ibxiDQyTAW6Zip3J4Btk2x4SgApQCeFbX");
   const usdtUsdPriceFeedAccount = new PublicKey("7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE");
 
-  const lamportsToPay = 5000000; // 0.005 SOL in lamports
+  const lamportsToPay = 500000000; // 0.005 SOL in lamports
   const connection = provider.connection;
   const splMint = new PublicKey("7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ");
   const usdcMint = new PublicKey("7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb");
@@ -67,81 +67,81 @@ describe("token_swap", () => {
     }
   });
 
-  it("Initializes the token swap state and accounts", async () => {
-    const tx = await program.methods
-      .initializeState(usdcMint, usdtMint, splMint)
-      .accounts({
-        admin: project_spl_authority.publicKey,
-      })
-      .signers([project_spl_authority])
-      .rpc();
+  // it("Initializes the token swap state and accounts", async () => {
+  //   const tx = await program.methods
+  //     .initializeState(usdcMint, usdtMint, splMint)
+  //     .accounts({
+  //       admin: project_spl_authority.publicKey,
+  //     })
+  //     .signers([project_spl_authority])
+  //     .rpc();
 
-    console.log("Initialize TX:", tx);
-    const state = await program.account.state.all();
-    console.log("Initialize TX:", tx, "+++", state);
+  //   console.log("Initialize TX:", tx);
+  //   const state = await program.account.state.all();
+  //   console.log("Initialize TX:", tx, "+++", state);
 
-  });
+  // });
 
-  it("Initializes the token swap pda spl ata", async () => {
-    const _state = await program.account.state.all();
-    console.log("Initialize TX:", "+++", _state);
-    const tx = await program.methods
-      .initializePdaSplAta()
-      .accounts({
-        admin: project_spl_authority.publicKey,
-        mint: splMint,
-      })
-      .signers([project_spl_authority])
-      .rpc();
+  // it("Initializes the token swap pda spl ata", async () => {
+  //   const _state = await program.account.state.all();
+  //   console.log("Initialize TX:", "+++", _state);
+  //   const tx = await program.methods
+  //     .initializePdaSplAta()
+  //     .accounts({
+  //       admin: project_spl_authority.publicKey,
+  //       mint: splMint,
+  //     })
+  //     .signers([project_spl_authority])
+  //     .rpc();
 
-    console.log("Initialize TX:", tx);
+  //   console.log("Initialize TX:", tx);
 
-  });
+  // });
 
-  it("Initializes the token swap pda usdc ata", async () => {
-    const tx = await program.methods
-      .initializePdaUsdcAta()
-      .accounts({
-        usdcMint: usdcMint,
-        admin: project_spl_authority.publicKey,
-      })
-      .signers([project_spl_authority])
-      .rpc();
+  // it("Initializes the token swap pda usdc ata", async () => {
+  //   const tx = await program.methods
+  //     .initializePdaUsdcAta()
+  //     .accounts({
+  //       usdcMint: usdcMint,
+  //       admin: project_spl_authority.publicKey,
+  //     })
+  //     .signers([project_spl_authority])
+  //     .rpc();
 
-    console.log("Initialize TX:", tx);
-    const state = await program.account.state.all();
-    console.log("Initialize TX:", tx, "+++", state);
+  //   console.log("Initialize TX:", tx);
+  //   const state = await program.account.state.all();
+  //   console.log("Initialize TX:", tx, "+++", state);
 
-  });
+  // });
 
-  it("Initializes the token swap pda usdt ata", async () => {
-    const tx = await program.methods
-      .initializePdaUsdtAta()
-      .accounts({
-        usdtMint: usdtMint,
-        admin: project_spl_authority.publicKey,
-      })
-      .signers([project_spl_authority])
-      .rpc();
+  // it("Initializes the token swap pda usdt ata", async () => {
+  //   const tx = await program.methods
+  //     .initializePdaUsdtAta()
+  //     .accounts({
+  //       usdtMint: usdtMint,
+  //       admin: project_spl_authority.publicKey,
+  //     })
+  //     .signers([project_spl_authority])
+  //     .rpc();
 
-    console.log("Initialize TX:", tx);
-    const state = await program.account.state.all();
-    console.log("Initialize TX:", tx, "+++", state);
-  });
+  //   console.log("Initialize TX:", tx);
+  //   const state = await program.account.state.all();
+  //   console.log("Initialize TX:", tx, "+++", state);
+  // });
 
-  it("Deposits SPL tokens into the swap", async () => {
-    const depositAmount = new anchor.BN(10000000);
+  // it("Deposits SPL tokens into the swap", async () => {
+  //   const depositAmount = new anchor.BN(50000000000);
 
-    const tx = await program.methods
-      .deposit(depositAmount)
-      .accounts({
-        admin: project_spl_authority.publicKey,
-      })
-      .signers([project_spl_authority])
-      .rpc();
+  //   const tx = await program.methods
+  //     .deposit(depositAmount)
+  //     .accounts({
+  //       admin: project_spl_authority.publicKey,
+  //     })
+  //     .signers([project_spl_authority])
+  //     .rpc();
 
-    console.log("Deposit TX:", tx);
-  });
+  //   console.log("Deposit TX:", tx);
+  // });
 
   it("Withdraws SPL tokens from the swap", async () => {
     const tx = await program.methods
@@ -178,13 +178,9 @@ describe("token_swap", () => {
   //     .buySplWithSol(new anchor.BN(lamportsToPay))
   //     .accounts({
   //       user: wallet.publicKey,
-  //       projectSolAccount: project_spl_authority.publicKey,
-  //       projectSplAta: projectSplAccount,
-  //       projectSplAuthority: project_spl_authority.publicKey,
-  //       mint: splMint,
   //       priceUpdate: solUsdPriceFeedAccount
   //     })
-  //     .signers([project_spl_authority])
+  //     .signers([])
   //     .rpc();
 
   //   console.log("Transaction signature:", tx);

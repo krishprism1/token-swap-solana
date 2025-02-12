@@ -7,7 +7,7 @@ use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 use std::str::FromStr;
 
-declare_id!("6fMpZLi7p3kB4w7XtH2HT1vbXWLXi81oFj37tZ4WSc7q");
+declare_id!("G9VUidVQ3Qr29xSGyoPf7Lqa4jtPm4wXsh8SytChwrgp");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
@@ -21,14 +21,18 @@ pub struct BuySplWithSol<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
+    #[account(mut, seeds = [b"state"], bump)]
+    pub state: Account<'info, State>,
+
+    #[account(mut, seeds = [b"pda_spl_ata"], bump)]
+    pub pda_spl_ata: Account<'info, TokenAccount>,
+
     /// CHECK: Project's sol wallet
     #[account(mut, address = Pubkey::from_str(PROJECT_WALLET).unwrap())]
     pub project_sol_account: AccountInfo<'info>,
 
     #[account(mut,address = Pubkey::from_str(PROJECT_SPL_ATA).unwrap())]
     pub project_spl_ata: Account<'info, TokenAccount>,
-
-    pub project_spl_authority: Signer<'info>,
 
     #[account(mut, address = Pubkey::from_str(SPL_MINT_ADDRESS).unwrap())]
     pub mint: Account<'info, Mint>,
@@ -49,10 +53,17 @@ pub struct BuySplWithSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
+
 #[derive(Accounts)]
 pub struct BuySplWithSpl<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+
+    #[account(mut, seeds = [b"state"], bump)]
+    pub state: Account<'info, State>,
+
+    #[account(mut, seeds = [b"pda_spl_ata"], bump)]
+    pub pda_spl_ata: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub user_token_ata: Account<'info, TokenAccount>,
@@ -357,7 +368,7 @@ pub mod token_swap {
             return Err(CustomError::PurchaseAmountTooHigh.into());
         }
 
-        if ctx.accounts.project_spl_ata.amount < spl_amount {
+        if ctx.accounts.pda_spl_ata.amount < spl_amount {
             return Err(CustomError::InsufficientSPLBalance.into());
         }
 
@@ -380,11 +391,18 @@ pub mod token_swap {
             ]
         )?;
 
-        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
-            from: ctx.accounts.project_spl_ata.to_account_info(),
-            to: ctx.accounts.user_spl_ata.to_account_info(),
-            authority: ctx.accounts.project_spl_authority.to_account_info(),
-        });
+        let seeds = &[b"state".as_ref(), &[ctx.bumps.state]];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            SplTransfer {
+                from: ctx.accounts.pda_spl_ata.to_account_info(),
+                to: ctx.accounts.user_spl_ata.to_account_info(),
+                authority: ctx.accounts.state.to_account_info(),
+            },
+            signer
+        );
         token::transfer(cpi_ctx, spl_amount)?;
         Ok(())
     }
@@ -430,7 +448,7 @@ pub mod token_swap {
             return Err(CustomError::PurchaseAmountTooHigh.into());
         }
 
-        if ctx.accounts.project_spl_ata.amount < spl_amount {
+        if ctx.accounts.pda_spl_ata.amount < spl_amount {
             return Err(CustomError::InsufficientSPLBalance.into());
         }
 
@@ -441,13 +459,16 @@ pub mod token_swap {
         });
         token::transfer(cpi_ctx, token_amount)?;
 
-        let cpi_ctx_spl_transfer = CpiContext::new(
+        let seeds = &[b"state".as_ref(), &[ctx.bumps.state]];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx_spl_transfer = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             SplTransfer {
-                from: ctx.accounts.project_spl_ata.to_account_info(),
+                from: ctx.accounts.pda_spl_ata.to_account_info(),
                 to: ctx.accounts.user_spl_ata.to_account_info(),
-                authority: ctx.accounts.project_spl_authority.to_account_info(),
-            }
+                authority: ctx.accounts.state.to_account_info(),
+            }, signer
         );
         token::transfer(cpi_ctx_spl_transfer, spl_amount)?;
         Ok(())
