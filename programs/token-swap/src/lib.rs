@@ -11,10 +11,6 @@ declare_id!("BN7BxF5hiBK9v93ieKP5r8g1qbxwDaCTjudY8JAh8cUP");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
-pub const PROJECT_WALLET: &str = "2rtz7ts6iyGjKh2Xrab8A7yybLY7f6XiQRPdiFcapxcr";
-pub const PROJECT_SPL_ATA: &str = "2niaehib38tpaE1zybHC6YZUXYcFDk5Xj9jjzgWR3tDu";
-pub const SPL_MINT_ADDRESS: &str = "7WWz3pdvJiBg9eW1imHCQDXWL19vLA83JWUeV2W2ZgBQ";
-pub const PROJECT_USDC_ATA: &str = "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb";
 
 #[derive(Accounts)]
 pub struct BuySplWithSol<'info> {
@@ -29,7 +25,7 @@ pub struct BuySplWithSol<'info> {
 
     /// CHECK: Project's SOL account fetched dynamically from state
     #[account(mut, address = state.admin)]
-    pub project_sol_account: AccountInfo<'info>, 
+    pub project_sol_account: AccountInfo<'info>,
 
     #[account(mut, address = state.mint)]
     pub mint: Account<'info, Mint>,
@@ -50,7 +46,6 @@ pub struct BuySplWithSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-
 #[derive(Accounts)]
 pub struct BuySplWithSpl<'info> {
     #[account(mut)]
@@ -62,15 +57,15 @@ pub struct BuySplWithSpl<'info> {
     #[account(mut, seeds = [b"pda_spl_ata"], bump)]
     pub pda_spl_ata: Account<'info, TokenAccount>,
 
+    #[account(mut, seeds = [b"pda_usdc_ata"], bump)]
+    pub pda_usdc_ata: Account<'info, TokenAccount>,
+
+    #[account(mut, seeds = [b"pda_usdt_ata"], bump)]
+    pub pda_usdt_ata: Account<'info, TokenAccount>,
+
     #[account(mut)]
     pub user_token_ata: Account<'info, TokenAccount>,
 
-    #[account(mut, constraint = project_token_ata.key() == Pubkey::from_str(PROJECT_USDC_ATA).unwrap())]
-    pub project_token_ata: Account<'info, TokenAccount>,
-
-    #[account(mut,address = Pubkey::from_str(PROJECT_SPL_ATA).unwrap())]
-    pub project_spl_ata: Account<'info, TokenAccount>,
-    pub project_spl_authority: Signer<'info>,
     pub user_mint: Account<'info, Mint>,
 
     #[account(mut, address = state.mint)]
@@ -409,19 +404,20 @@ pub mod token_swap {
 
         let spl_price_in_usd = 0.02_f64;
         let decimals = 1_000_000u64;
+        let maximum_age: u64 = 90;
+        const USDC_MINT: &str = "7Yz3ecFyeU6heqrNSbikenhDDUX5DkE2eehJR6K1gjBb";
+        const USDT_MINT: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 
         let user_mint_key = ctx.accounts.user_mint.key().to_string();
 
         let feed_ids = match user_mint_key.as_str() {
-            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" =>
-                Some("0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b"),
-            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" =>
-                Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
+            USDT_MINT => Some("0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b"),
+            USDC_MINT => Some("0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"),
             _ => None,
         };
 
         let price_update = &mut ctx.accounts.price_update;
-        let maximum_age: u64 = 60;
+
         let feed_id: [u8; 32] = match feed_ids {
             Some(id) => get_feed_id_from_hex(id)?,
             None => {
@@ -449,9 +445,15 @@ pub mod token_swap {
             return Err(CustomError::InsufficientSPLBalance.into());
         }
 
+        let to_account_info = match user_mint_key.as_str() {
+            USDC_MINT => ctx.accounts.pda_usdc_ata.to_account_info(),
+            USDT_MINT => ctx.accounts.pda_usdt_ata.to_account_info(),
+            _ => {return Err(CustomError::InvalidMint.into());}
+        };
+
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {
             from: ctx.accounts.user_token_ata.to_account_info(),
-            to: ctx.accounts.project_token_ata.to_account_info(),
+            to: to_account_info,
             authority: ctx.accounts.user.to_account_info(),
         });
         token::transfer(cpi_ctx, token_amount)?;
@@ -465,7 +467,8 @@ pub mod token_swap {
                 from: ctx.accounts.pda_spl_ata.to_account_info(),
                 to: ctx.accounts.user_spl_ata.to_account_info(),
                 authority: ctx.accounts.state.to_account_info(),
-            }, signer
+            },
+            signer
         );
         token::transfer(cpi_ctx_spl_transfer, spl_amount)?;
         Ok(())
