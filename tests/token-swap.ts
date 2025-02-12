@@ -143,17 +143,17 @@ describe("token_swap", () => {
   //   console.log("Deposit TX:", tx);
   // });
 
-  it("Withdraws SPL tokens from the swap", async () => {
-    const tx = await program.methods
-      .withdraw()
-      .accounts({
-        admin: project_spl_authority.publicKey,
-      })
-      .signers([project_spl_authority]) // Sign with admin
-      .rpc();
+  // it("Withdraws SPL tokens from the swap", async () => {
+  //   const tx = await program.methods
+  //     .withdraw()
+  //     .accounts({
+  //       admin: project_spl_authority.publicKey,
+  //     })
+  //     .signers([project_spl_authority]) // Sign with admin
+  //     .rpc();
 
-    console.log("Withdraw TX:", tx);
-  });
+  //   console.log("Withdraw TX:", tx);
+  // });
 
   // it("Updates the admin address", async () => {
   //   const newAdmin = Keypair.generate(); // Generate a new admin keypair
@@ -173,25 +173,27 @@ describe("token_swap", () => {
 
 
 
-  // it("Buys SPL tokens with valid SOL", async () => {
-  //   const tx = await program.methods
-  //     .buySplWithSol(new anchor.BN(lamportsToPay))
-  //     .accounts({
-  //       user: wallet.publicKey,
-  //       priceUpdate: solUsdPriceFeedAccount
-  //     })
-  //     .signers([])
-  //     .rpc();
+  it("Buys SPL tokens with valid SOL", async () => {
+    const tx = await program.methods
+      .buySplWithSol(new anchor.BN(lamportsToPay))
+      .accounts({
+        user: wallet.publicKey,
+        mint: splMint,
+        projectSolAccount: project_spl_authority.publicKey,
+        priceUpdate: solUsdPriceFeedAccount
+      })
+      .signers([])
+      .rpc();
 
-  //   console.log("Transaction signature:", tx);
+    console.log("Transaction signature:", tx);
 
-  //   // Fetch the user's SPL token account balance
-  //   const userSplAccountInfo = await connection.getParsedAccountInfo(
-  //     userSplAccount
-  //   );
-  //   const balance = userSplAccountInfo.value?.data["parsed"]["info"]["tokenAmount"]["uiAmount"];
-  //   console.log("User SPL Token Balance:", balance);
-  // });
+    // Fetch the user's SPL token account balance
+    const userSplAccountInfo = await connection.getParsedAccountInfo(
+      userSplAccount
+    );
+    const balance = userSplAccountInfo.value?.data["parsed"]["info"]["tokenAmount"]["uiAmount"];
+    console.log("User SPL Token Balance:", balance);
+  });
 
   // it("Fails to buy SPL tokens when the project wallet has insufficient balance", async () => {
   //   const lamportsToPay = 1_000_000_000; // 2 SOL in lamports

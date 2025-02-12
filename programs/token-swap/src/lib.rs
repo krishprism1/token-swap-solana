@@ -7,7 +7,7 @@ use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 use std::str::FromStr;
 
-declare_id!("G9VUidVQ3Qr29xSGyoPf7Lqa4jtPm4wXsh8SytChwrgp");
+declare_id!("BN7BxF5hiBK9v93ieKP5r8g1qbxwDaCTjudY8JAh8cUP");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
@@ -27,14 +27,11 @@ pub struct BuySplWithSol<'info> {
     #[account(mut, seeds = [b"pda_spl_ata"], bump)]
     pub pda_spl_ata: Account<'info, TokenAccount>,
 
-    /// CHECK: Project's sol wallet
-    #[account(mut, address = Pubkey::from_str(PROJECT_WALLET).unwrap())]
-    pub project_sol_account: AccountInfo<'info>,
+    /// CHECK: Project's SOL account fetched dynamically from state
+    #[account(mut, address = state.admin)]
+    pub project_sol_account: AccountInfo<'info>, 
 
-    #[account(mut,address = Pubkey::from_str(PROJECT_SPL_ATA).unwrap())]
-    pub project_spl_ata: Account<'info, TokenAccount>,
-
-    #[account(mut, address = Pubkey::from_str(SPL_MINT_ADDRESS).unwrap())]
+    #[account(mut, address = state.mint)]
     pub mint: Account<'info, Mint>,
 
     #[account(
@@ -76,7 +73,7 @@ pub struct BuySplWithSpl<'info> {
     pub project_spl_authority: Signer<'info>,
     pub user_mint: Account<'info, Mint>,
 
-    #[account(mut, address = Pubkey::from_str(SPL_MINT_ADDRESS).unwrap())]
+    #[account(mut, address = state.mint)]
     pub mint: Account<'info, Mint>,
 
     #[account(
