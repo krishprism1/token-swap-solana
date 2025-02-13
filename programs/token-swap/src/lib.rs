@@ -5,7 +5,7 @@ use anchor_spl::associated_token;
 use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
-use std::str::FromStr;
+use anchor_lang::solana_program::program::invoke_signed;
 
 declare_id!("BN7BxF5hiBK9v93ieKP5r8g1qbxwDaCTjudY8JAh8cUP");
 
@@ -20,12 +20,11 @@ pub struct BuySplWithSol<'info> {
     #[account(mut, seeds = [b"state"], bump)]
     pub state: Account<'info, State>,
 
+    #[account(mut, seeds = [b"pda_sol"], bump)]
+    pub pda_sol_account: SystemAccount<'info>,
+
     #[account(mut, seeds = [b"pda_spl_ata"], bump)]
     pub pda_spl_ata: Account<'info, TokenAccount>,
-
-    /// CHECK: Project's SOL account fetched dynamically from state
-    #[account(mut, address = state.admin)]
-    pub project_sol_account: AccountInfo<'info>,
 
     #[account(mut, address = state.mint)]
     pub mint: Account<'info, Mint>,
@@ -213,7 +212,11 @@ pub struct Withdraw<'info> {
     #[account(mut, seeds = [b"pda_usdt_ata"], bump)]
     pub pda_usdt_ata: Account<'info, TokenAccount>,
 
+    #[account(mut, seeds = [b"pda_sol"], bump)]
+    pub pda_sol_account: SystemAccount<'info>,
+
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -284,6 +287,25 @@ pub mod token_swap {
 
         let seeds = &[b"state".as_ref(), &[ctx.bumps.state]];
         let signer = &[&seeds[..]];
+
+        let pda_sol_balance = ctx.accounts.pda_sol_account.lamports();
+        if pda_sol_balance > 0 {
+            let transfer_instruction = system_instruction::transfer(
+                &ctx.accounts.pda_sol_account.key(), // PDA
+                &ctx.accounts.admin.key(), // Admin
+                pda_sol_balance
+            );
+
+            invoke_signed(
+                &transfer_instruction,
+                &[
+                    ctx.accounts.pda_sol_account.to_account_info(),
+                    ctx.accounts.admin.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+                &[&[b"pda_sol", &[ctx.bumps.pda_sol_account]]] 
+            )?;
+        }
 
         let pda_spl_balance = ctx.accounts.pda_spl_ata.amount;
         if pda_spl_balance > 0 {
@@ -365,12 +387,11 @@ pub mod token_swap {
         }
 
         let user_signer = &ctx.accounts.user;
-        let project_sol_account = &ctx.accounts.project_sol_account;
         let system_program = &ctx.accounts.system_program;
 
         let transfer_instruction = system_instruction::transfer(
             user_signer.key,
-            project_sol_account.key,
+            &ctx.accounts.pda_sol_account.key,
             lamports_to_pay
         );
 
@@ -378,7 +399,7 @@ pub mod token_swap {
             &transfer_instruction,
             &[
                 user_signer.to_account_info(),
-                project_sol_account.to_account_info(),
+                ctx.accounts.pda_sol_account.to_account_info(),
                 system_program.to_account_info(),
             ]
         )?;
@@ -448,7 +469,9 @@ pub mod token_swap {
         let to_account_info = match user_mint_key.as_str() {
             USDC_MINT => ctx.accounts.pda_usdc_ata.to_account_info(),
             USDT_MINT => ctx.accounts.pda_usdt_ata.to_account_info(),
-            _ => {return Err(CustomError::InvalidMint.into());}
+            _ => {
+                return Err(CustomError::InvalidMint.into());
+            }
         };
 
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), SplTransfer {

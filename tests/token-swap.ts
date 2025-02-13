@@ -167,7 +167,6 @@ describe("token_swap", () => {
       .accounts({
         user: wallet.publicKey,
         mint: splMint,
-        projectSolAccount: project_spl_authority.publicKey,
         priceUpdate: solUsdPriceFeedAccount
       })
       .signers([])
@@ -190,7 +189,6 @@ describe("token_swap", () => {
         .buySplWithSol(new anchor.BN(lamportsToPay))
         .accounts({
           user: wallet.publicKey,
-          projectSolAccount: project_spl_authority.publicKey,
           mint: splMint,
           priceUpdate: solUsdPriceFeedAccount,
         })
@@ -220,7 +218,6 @@ describe("token_swap", () => {
         .buySplWithSol(new anchor.BN(lamportsToPayBelowMin))
         .accounts({
           user: wallet.publicKey,
-          projectSolAccount: project_spl_authority.publicKey,
           mint: splMint,
           priceUpdate: solUsdPriceFeedAccount,
         })
@@ -249,7 +246,6 @@ describe("token_swap", () => {
         .buySplWithSol(new anchor.BN(lamportsToPayAboveMax))
         .accounts({
           user: wallet.publicKey,
-          projectSolAccount: project_spl_authority.publicKey,
           mint: splMint,
           priceUpdate: solUsdPriceFeedAccount,
         })
@@ -383,7 +379,7 @@ describe("token_swap", () => {
   });
 
 
-  it("Withdraws SPL tokens from the swap", async () => {
+  it("Withdraws tokens tokens from the smart contract to admin account", async () => {
     const tx = await program.methods
       .withdraw()
       .accounts({
