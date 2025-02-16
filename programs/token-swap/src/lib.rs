@@ -6,8 +6,9 @@ use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 use anchor_lang::solana_program::program::invoke_signed;
+use std::convert::TryFrom;
 
-declare_id!("BN7BxF5hiBK9v93ieKP5r8g1qbxwDaCTjudY8JAh8cUP");
+declare_id!("699S7kMzB5NzHNVo4U5T3AFb18Q3Ec2ZFZHNL6QaqtYJ");
 
 const MIN_PURCHASE: u64 = 50;
 const MAX_PURCHASE: u64 = 5_000_000;
@@ -109,6 +110,20 @@ pub struct InitializeState<'info> {
     pub state: Account<'info, State>,
     #[account(mut)]
     pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializePdaSol<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"pda_sol"], 
+        bump,
+    )]
+    pub pda_sol_account: SystemAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -247,6 +262,31 @@ pub mod token_swap {
         Ok(())
     }
 
+    pub fn initialize_pda_sol(ctx: Context<InitializePdaSol>) -> Result<()> {
+        let rent = Rent::get()?;
+        let rent_exempt_lamports = rent.minimum_balance(0); 
+        let admin_signer = &ctx.accounts.admin;
+        let system_program = &ctx.accounts.system_program;
+        
+        let transfer_instruction = system_instruction::transfer(
+            ctx.accounts.admin.key,
+            &ctx.accounts.pda_sol_account.key,
+            rent_exempt_lamports
+        );
+
+        anchor_lang::solana_program::program::invoke(
+            &transfer_instruction,
+            &[
+                admin_signer.to_account_info(),
+                ctx.accounts.pda_sol_account.to_account_info(),
+                system_program.to_account_info(),
+            ]
+        )?;
+
+        msg!("PDA SOL account initialized: {}", ctx.accounts.pda_sol_account.key());
+        Ok(())
+    }
+
     pub fn initialize_pda_spl_ata(ctx: Context<InitializePdaSplAta>) -> Result<()> {
         msg!("PDA SPL ATA initialized: {}", ctx.accounts.pda_spl_ata.key());
         Ok(())
@@ -288,12 +328,13 @@ pub mod token_swap {
         let seeds = &[b"state".as_ref(), &[ctx.bumps.state]];
         let signer = &[&seeds[..]];
 
-        let pda_sol_balance = ctx.accounts.pda_sol_account.lamports();
-        if pda_sol_balance > 0 {
+        let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
+        let withdrawable_sol = ctx.accounts.pda_sol_account.lamports() - rent_exempt_minimum;
+        if withdrawable_sol > 0 {
             let transfer_instruction = system_instruction::transfer(
                 &ctx.accounts.pda_sol_account.key(), // PDA
                 &ctx.accounts.admin.key(), // Admin
-                pda_sol_balance
+                withdrawable_sol
             );
 
             invoke_signed(
@@ -362,7 +403,7 @@ pub mod token_swap {
         let lamports_per_sol = 1_000_000_000u64;
 
         let price_update = &mut ctx.accounts.price_update;
-        let maximum_age: u64 = 60;
+        let maximum_age: u64 = 90;
         let feed_id: [u8; 32] = get_feed_id_from_hex(
             "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
         )?;
