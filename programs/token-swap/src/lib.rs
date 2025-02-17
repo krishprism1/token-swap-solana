@@ -6,7 +6,6 @@ use anchor_lang::solana_program::system_instruction;
 use pyth_solana_receiver_sdk::price_update::{ PriceUpdateV2 };
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 use anchor_lang::solana_program::program::invoke_signed;
-use std::convert::TryFrom;
 
 declare_id!("699S7kMzB5NzHNVo4U5T3AFb18Q3Ec2ZFZHNL6QaqtYJ");
 
