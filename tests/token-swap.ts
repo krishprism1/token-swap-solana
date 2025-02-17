@@ -58,12 +58,14 @@ describe("token_swap", () => {
           wallet.publicKey,    // Payer
           userSplAccount,      // Associated token account
           wallet.publicKey,    // Owner
-          splMint              // SPL token mint
+          usdtMint              // SPL token mint
         )
       );
 
       // Send and confirm the transaction
       await provider.sendAndConfirm(transaction);
+      // await provider.sendAndConfirm(transaction, [project_spl_authority]);
+
       console.log("Created user SPL account:", userSplAccount.toBase58());
     }
   });
@@ -181,210 +183,212 @@ describe("token_swap", () => {
     console.log("User SPL Token Balance:", balance);
   });
 
-  // it("Fails to buy SPL tokens when the project wallet has insufficient balance", async () => {
-  //   const lamportsToPay = 1_000_000_000; // 2 SOL in lamports
-  //   try {
-  //     const tx = await program.methods
-  //       .buySplWithSol(new anchor.BN(lamportsToPay))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         mint: splMint,
-  //         priceUpdate: solUsdPriceFeedAccount,
-  //       })
-  //       .signers([])
-  //       .rpc();
+  it("Fails to buy SPL tokens when the project wallet has insufficient balance", async () => {
+    const lamportsToPay = 1_000_000_000; // 2 SOL in lamports
+    try {
+      const tx = await program.methods
+        .buySplWithSol(new anchor.BN(lamportsToPay))
+        .accounts({
+          user: wallet.publicKey,
+          mint: splMint,
+          priceUpdate: solUsdPriceFeedAccount,
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
 
-  //     // Check for the specific error code related to insufficient SPL balance
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'InsufficientSPLBalance',  // Match the exact error code
-  //       "Expected error due to insufficient SPL balance"
-  //     );
-  //   }
-  // });
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'InsufficientSPLBalance',  // Match the exact error code
+        "Expected error due to insufficient SPL balance"
+      );
+    }
+  });
 
-  // it("Fails to buy SPL tokens with amount below minimum limit", async () => {
-  //   const lamportsToPayBelowMin = 100000; // Example value below the minimum limit
+  it("Fails to buy SPL tokens with amount below minimum limit", async () => {
+    const lamportsToPayBelowMin = 100000; // Example value below the minimum limit
 
-  //   try {
-  //     const tx = await program.methods
-  //       .buySplWithSol(new anchor.BN(lamportsToPayBelowMin))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         mint: splMint,
-  //         priceUpdate: solUsdPriceFeedAccount,
-  //       })
-  //       .signers([])
-  //       .rpc();
+    try {
+      const tx = await program.methods
+        .buySplWithSol(new anchor.BN(lamportsToPayBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          mint: splMint,
+          priceUpdate: solUsdPriceFeedAccount,
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to purchase amount being below the minimum limit, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
-  //     // Check for the specific error code related to amount being below the minimum limit
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'PurchaseAmountTooLow',  // Match the exact error code
-  //       "Expected error due to purchase amount being below the minimum limit"
-  //     );
-  //   }
-  // });
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to purchase amount being below the minimum limit, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
+      // Check for the specific error code related to amount being below the minimum limit
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'PurchaseAmountTooLow',  // Match the exact error code
+        "Expected error due to purchase amount being below the minimum limit"
+      );
+    }
+  });
 
-  // it("Fails to buy SPL tokens with amount above maximum limit", async () => {
-  //   const lamportsToPayAboveMax = 600000000000;
+  it("Fails to buy SPL tokens with amount above maximum limit", async () => {
+    const lamportsToPayAboveMax = 600000000000;
 
-  //   try {
-  //     const tx = await program.methods
-  //       .buySplWithSol(new anchor.BN(lamportsToPayAboveMax))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         mint: splMint,
-  //         priceUpdate: solUsdPriceFeedAccount,
-  //       })
-  //       .signers([])
-  //       .rpc();
+    try {
+      const tx = await program.methods
+        .buySplWithSol(new anchor.BN(lamportsToPayAboveMax))
+        .accounts({
+          user: wallet.publicKey,
+          mint: splMint,
+          priceUpdate: solUsdPriceFeedAccount,
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to purchase amount being above the maximum limit, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to purchase amount being above the maximum limit, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
 
-  //     // Check for the specific error code related to amount being above the maximum limit
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'PurchaseAmountTooHigh',  // Match the exact error code
-  //       "Expected error due to purchase amount being above the maximum limit"
-  //     );
-  //   }
-  // });
+      // Check for the specific error code related to amount being above the maximum limit
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'PurchaseAmountTooHigh',  // Match the exact error code
+        "Expected error due to purchase amount being above the maximum limit"
+      );
+    }
+  });
 
-  // it("buy spl token with valid usdc/usdt amount", async () => {
-  //   try {
-  //     const tokenAmountBelowMin = 5000000;
-  //     const tx = await program.methods
-  //       .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         userTokenAta: userUsdcATA,
-  //         mint: splMint,
-  //         userMint: usdcMint,
-  //         priceUpdate: usdcUsdPriceFeedAccount
-  //       })
-  //       .signers([])
-  //       .rpc();
+  it("buy spl token with valid usdc/usdt amount", async () => {
+    try {
+      const tokenAmountBelowMin = 5000000;
+      const tx = await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          mint: splMint,
+          userMint: usdcMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([])
+        .rpc();
 
-  //     console.log("Transaction signature:", tx);
-  //   } catch (error) {
-  //     console.log(error)
-  //   }
-  // })
+      console.log("Transaction signature:", tx);
+    } catch (error) {
+      console.log(error)
+    }
+  })
 
-  // it("Fails to purchase project SPL tokens with a SPL token that is different from USDC/USDT.", async () => {
-  //   try {
-  //     const tokenAmountBelowMin = 50000; // 0.5 = 25 project spl token,  token decimal = 5
-  //     const tx = await program.methods
-  //       .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         userTokenAta: userUsdcATA,
-  //         mint: splMint,
-  //         userMint: invalidMint,
-  //         priceUpdate: usdcUsdPriceFeedAccount
-  //       })
-  //       .signers([])
-  //       .rpc();
+  it("Fails to purchase project SPL tokens with a SPL token that is different from USDC/USDT.", async () => {
+    try {
+      const tokenAmountBelowMin = 50000; // 0.5 = 25 project spl token,  token decimal = 5
+      const tx = await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          mint: splMint,
+          userMint: invalidMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
 
-  //     // Check for the specific error code related to insufficient SPL balance
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'InvalidMint',  // Match the exact error code
-  //       "Expected error due to insufficient SPL balance in project account"
-  //     );
-  //   }
-  // });
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'InvalidMint',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
 
-  // it("Fails to buy SPL tokens with usdc/usdt when the project wallet has insufficient balance", async () => {
-  //   try {
-  //     const tokenAmountBelowMin = 10000000; // 100 = 5000 project spl token,  token decimal = 5
-  //     const tx = await program.methods
-  //       .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         userTokenAta: userUsdcATA,
-  //         mint: splMint,
-  //         userMint: usdcMint,
-  //         priceUpdate: usdcUsdPriceFeedAccount
-  //       })
-  //       .signers([])
-  //       .rpc();
+  it("Fails to buy SPL tokens with usdc/usdt when the project wallet has insufficient balance", async () => {
+    try {
+      const tokenAmountBelowMin = 10000000; // 100 = 5000 project spl token,  token decimal = 5
+      const tx = await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          mint: splMint,
+          userMint: usdcMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
 
-  //     // Check for the specific error code related to insufficient SPL balance
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'InsufficientSPLBalance',  // Match the exact error code
-  //       "Expected error due to insufficient SPL balance in project account"
-  //     );
-  //   }
-  // });
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'InsufficientSPLBalance',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
 
-  // it("Fails to buy SPL tokens by usdc/usdt with amount below minimum limit", async () => {
-  //   try {
-  //     const tokenAmountBelowMin = 50000; // 0.5 = 25 project spl token,  token decimal = 5
-  //     const tx = await program.methods
-  //       .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
-  //       .accounts({
-  //         user: wallet.publicKey,
-  //         userTokenAta: userUsdcATA,
-  //         mint: splMint,
-  //         userMint: usdcMint,
-  //         priceUpdate: usdcUsdPriceFeedAccount
-  //       })
-  //       .signers([])
-  //       .rpc();
+  it("Fails to buy SPL tokens by usdc/usdt with amount below minimum limit", async () => {
+    try {
+      const tokenAmountBelowMin = 50000; // 0.5 = 25 project spl token,  token decimal = 5
+      const tx = await program.methods
+        .buySplWithSpl(new anchor.BN(tokenAmountBelowMin))
+        .accounts({
+          user: wallet.publicKey,
+          userTokenAta: userUsdcATA,
+          mint: splMint,
+          userMint: usdcMint,
+          priceUpdate: usdcUsdPriceFeedAccount
+        })
+        .signers([])
+        .rpc();
 
-  //     // If the transaction succeeds unexpectedly, fail the test
-  //     assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
-  //   } catch (error) {
-  //     // Parse the Anchor error and assert the error code
-  //     const anchorError = error as anchor.AnchorError;
+      // If the transaction succeeds unexpectedly, fail the test
+      assert.fail("Expected transaction to fail due to insufficient SPL balance, but it succeeded");
+    } catch (error) {
+      // Parse the Anchor error and assert the error code
+      const anchorError = error as anchor.AnchorError;
 
-  //     // Check for the specific error code related to insufficient SPL balance
-  //     assert.strictEqual(
-  //       anchorError.error.errorCode.code,
-  //       'PurchaseAmountTooLow',  // Match the exact error code
-  //       "Expected error due to insufficient SPL balance in project account"
-  //     );
-  //   }
-  // });
+      // Check for the specific error code related to insufficient SPL balance
+      assert.strictEqual(
+        anchorError.error.errorCode.code,
+        'PurchaseAmountTooLow',  // Match the exact error code
+        "Expected error due to insufficient SPL balance in project account"
+      );
+    }
+  });
 
 
   // it("Updates the admin address", async () => {
-  //   const newAdmin = new PublicKey("FGiJtB1qkuQsUYAvwi2ybhLG7MkZqpHreof3kKkaxDGC")
+  //   const newAdmin = new PublicKey("2rtz7ts6iyGjKh2Xrab8A7yybLY7f6XiQRPdiFcapxcr")
 
   //   const tx = await program.methods
   //     .updateAdmin(newAdmin) // Pass the new admin as an argument
-  //     .accounts({})
-  //     .signers([project_spl_authority]) // Old admin must sign
+  //     .accounts({
+  //       currentAdmin: wallet.publicKey
+  //     })
+  //     .signers([]) // Old admin must sign
   //     .rpc();
 
   //   console.log("Update Admin TX:", tx);
